@@ -1,0 +1,11 @@
+export { LoginView } from './LoginView';
+export { ForgotPasswordView } from './ForgotPasswordView';
+export { DashboardView } from './DashboardView';
+export { EditorView } from './EditorView';
+export { UserManagementView } from './UserManagementView';
+export { MyPopsView } from './MyPopsView';
+export { RevisionsView } from './RevisionsView';
+export { SettingsView } from './SettingsView';
+export * from './PopView';
+export { ProfileView } from './ProfileView';
+export { DepartmentsView } from './DepartmentsView';

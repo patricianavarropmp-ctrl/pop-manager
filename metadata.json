@@ -1,0 +1,5 @@
+{
+  "name": "POP Manager",
+  "description": "Sistema de gestão de Procedimentos Operacionais Padrão (POP) com editor estruturado e painel administrativo.",
+  "requestFramePermissions": []
+}
