@@ -54,7 +54,25 @@ export const EditorView = ({ setView, popId, onPopCreated }: EditorViewProps) =>
 
     useEffect(() => {
         const loadPopData = async () => {
-            if (!popId) return;
+            if (!popId) {
+                // Reset state for new POP
+                setTitle('');
+                setDescription('');
+                setDepartmentId(departments.length > 0 ? departments[0].id : '');
+                setStatus('draft');
+                setVideoUrl(null);
+                setSteps([
+                    {
+                        id: 1,
+                        title: 'Novo Passo',
+                        description: '',
+                        image: null,
+                        video_timestamp: null
+                    }
+                ]);
+                setTimeout(() => setHasUnsavedChanges(false), 200);
+                return;
+            }
             try {
                 const result = await popService.getPopById(popId);
                 if (result) {
@@ -79,7 +97,7 @@ export const EditorView = ({ setView, popId, onPopCreated }: EditorViewProps) =>
         };
 
         loadPopData();
-    }, [popId]);
+    }, [popId, departments]);
 
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -181,19 +199,29 @@ export const EditorView = ({ setView, popId, onPopCreated }: EditorViewProps) =>
 
 
     useEffect(() => {
-        const fetchDrops = async () => {
+        const fetchDrops = async (retries = 3) => {
             try {
                 const depts = await dropsService.getDepartments();
                 setDepartments(depts);
-                if (depts.length > 0) {
+                
+                // If it's a new POP and we just got departments, set the first one as default
+                if (!popId && depts.length > 0 && !departmentId) {
                     setDepartmentId(depts[0].id);
+                }
+
+                if (depts.length === 0 && retries > 0) {
+                    console.log(`No departments found, retrying... (${retries} left)`);
+                    setTimeout(() => fetchDrops(retries - 1), 1500);
                 }
             } catch (error) {
                 console.error("Falha ao carregar departamentos", error);
+                if (retries > 0) {
+                    setTimeout(() => fetchDrops(retries - 1), 2000);
+                }
             }
         };
         fetchDrops();
-    }, []);
+    }, [popId]);
 
     const handleSave = async (redirect: boolean = true) => {
         console.log("handleSave called", { redirect, popId, title, departmentId });

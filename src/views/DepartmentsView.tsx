@@ -42,7 +42,7 @@ export const DepartmentsView = ({ setView }: DepartmentsViewProps) => {
         }
     };
 
-    const fetchAll = async () => {
+    const fetchAll = async (retries = 3) => {
         setIsLoading(true);
         try {
             const [depts, users] = await Promise.all([
@@ -51,10 +51,22 @@ export const DepartmentsView = ({ setView }: DepartmentsViewProps) => {
             ]);
             setDepartments(depts);
             setAllUsers(users);
+
+            if (depts.length === 0 && retries > 0) {
+                console.log(`No departments found in view, retrying... (${retries} left)`);
+                setTimeout(() => fetchAll(retries - 1), 1500);
+                return;
+            }
         } catch (error) {
             console.error('Failed to load departments', error);
+            if (retries > 0) {
+                setTimeout(() => fetchAll(retries - 1), 2000);
+                return;
+            }
         } finally {
-            setIsLoading(false);
+            if (retries === 0 || departments.length > 0) {
+                setIsLoading(false);
+            }
         }
     };
 

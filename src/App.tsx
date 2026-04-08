@@ -16,6 +16,11 @@ export default function App() {
     setView(newView);
   };
 
+  const handleCreatePop = () => {
+    setSelectedPopId(null);
+    setView('editor');
+  };
+
   useEffect(() => {
     if (!isLoading) {
       if (!session) {
@@ -43,7 +48,7 @@ export default function App() {
       case 'profile': return <ProfileView setView={setView} />;
       case 'departments': return <DepartmentsView setView={setView} />;
       case 'dashboard':
-      default: return <DashboardView setView={setView} onSelectPop={handleSelectPop} />;
+      default: return <DashboardView setView={setView} onSelectPop={handleSelectPop} onCreatePop={handleCreatePop} />;
     }
   };
 

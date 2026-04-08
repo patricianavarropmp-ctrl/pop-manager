@@ -8,9 +8,10 @@ import { pdfExportService } from '../services/pdfExport';
 interface DashboardViewProps {
     setView: (v: View) => void;
     onSelectPop: (id: string, view?: View) => void;
+    onCreatePop?: () => void;
 }
 
-export const DashboardView = ({ setView, onSelectPop }: DashboardViewProps) => {
+export const DashboardView = ({ setView, onSelectPop, onCreatePop }: DashboardViewProps) => {
     const [pops, setPops] = useState<PopDatabase[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isExportingAll, setIsExportingAll] = useState(false);
@@ -71,7 +72,7 @@ export const DashboardView = ({ setView, onSelectPop }: DashboardViewProps) => {
                         <span>{isExportingAll ? 'Gerando...' : 'Exportar Todos'}</span>
                     </button>
                     <button
-                        onClick={() => setView('editor')}
+                        onClick={() => onCreatePop ? onCreatePop() : setView('editor')}
                         className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-xl shadow-blue-600/30 hover:scale-[1.02] active:scale-95 transition-all"
                     >
                         <PlusCircle size={20} />

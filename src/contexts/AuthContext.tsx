@@ -33,6 +33,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         let mounted = true;
 
         async function getInitialSession() {
+            // Safety timeout to ensure app eventually loads
+            const timeout = setTimeout(() => {
+                if (mounted && isLoading) {
+                    console.warn('Auth initialization timed out, forcing isLoading = false');
+                    setIsLoading(false);
+                }
+            }, 5000);
+
             try {
                 const { data: { session }, error } = await supabase.auth.getSession();
                 if (error) throw error;
@@ -40,11 +48,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (mounted) {
                     setSession(session);
                     setUser(session?.user ?? null);
-                    if (session?.user) await fetchProfile(session.user.id);
+                    if (session?.user) {
+                        await fetchProfile(session.user.id);
+                    }
                 }
             } catch (error) {
                 console.error('Error getting initial session:', error);
             } finally {
+                clearTimeout(timeout);
                 if (mounted) setIsLoading(false);
             }
         }
@@ -53,14 +64,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (_event, session) => {
+                console.log('Auth state change:', _event);
                 setSession(session);
                 setUser(session?.user ?? null);
                 if (session?.user) {
-                    await fetchProfile(session.user.id);
+                    // Don't await profile fetch to block setIsLoading if it's already running
+                    fetchProfile(session.user.id).finally(() => {
+                        if (mounted) setIsLoading(false);
+                    });
                 } else {
                     setProfile(null);
+                    if (mounted) setIsLoading(false);
                 }
-                setIsLoading(false);
             }
         );
 
