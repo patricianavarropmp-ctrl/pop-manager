@@ -7,4 +7,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error('VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY precisam ser definidos no .env.local');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        // Workaround para deadlock do navigator.locks no React 19/Vite em produção
+        lock: async (name, acquireTimeout, fn) => fn(),
+    }
+});

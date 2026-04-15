@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../types';
@@ -29,17 +29,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [profile, setProfile] = useState<Profile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    const isInitialized = useRef(false);
+    const loadingRef = useRef(true);
+
+    // Sincroniza o ref com o estado para uso em closures (setTimeout)
+    useEffect(() => {
+        loadingRef.current = isLoading;
+    }, [isLoading]);
+
     useEffect(() => {
         let mounted = true;
 
         async function getInitialSession() {
             // Safety timeout to ensure app eventually loads
             const timeout = setTimeout(() => {
-                if (mounted && isLoading) {
+                if (mounted && loadingRef.current) {
                     console.warn('Auth initialization timed out, forcing isLoading = false');
                     setIsLoading(false);
                 }
-            }, 5000);
+            }, 6000);
 
             try {
                 const { data: { session }, error } = await supabase.auth.getSession();
@@ -56,7 +64,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.error('Error getting initial session:', error);
             } finally {
                 clearTimeout(timeout);
-                if (mounted) setIsLoading(false);
+                if (mounted) {
+                    isInitialized.current = true;
+                    setIsLoading(false);
+                }
             }
         }
 
@@ -64,17 +75,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (_event, session) => {
-                console.log('Auth state change:', _event);
-                setSession(session);
-                setUser(session?.user ?? null);
-                if (session?.user) {
-                    // Don't await profile fetch to block setIsLoading if it's already running
-                    fetchProfile(session.user.id).finally(() => {
+                console.log('Auth state change:', _event, session?.user?.id);
+                
+                if (mounted) {
+                    setSession(session);
+                    setUser(session?.user ?? null);
+                    
+                    if (session?.user) {
+                        fetchProfile(session.user.id).finally(() => {
+                            if (mounted) setIsLoading(false);
+                        });
+                    } else {
+                        setProfile(null);
+                        // Apenas remove o loading se já inicializou via getSession ou timeout
                         if (mounted) setIsLoading(false);
-                    });
-                } else {
-                    setProfile(null);
-                    if (mounted) setIsLoading(false);
+                    }
                 }
             }
         );
@@ -112,8 +127,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(false);
     };
 
+    const value = useMemo(() => ({
+        session,
+        user,
+        profile,
+        isLoading,
+        signOut,
+        refreshProfile: () => user ? fetchProfile(user.id) : Promise.resolve()
+    }), [session, user, profile, isLoading]);
+
     return (
-        <AuthContext.Provider value={{ session, user, profile, isLoading, signOut, refreshProfile: () => user ? fetchProfile(user.id) : Promise.resolve() }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );
