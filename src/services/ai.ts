@@ -23,8 +23,8 @@ export const aiService = {
         const fileSizeMB = videoFile.size / (1024 * 1024);
         console.log(`[AI Diagnostic] File size: ${fileSizeMB.toFixed(2)} MB`);
 
-        if (fileSizeMB > 20) {
-            throw new Error(`Vídeo muito grande (${fileSizeMB.toFixed(1)}MB). O limite para processamento direto é 20MB. Tente um vídeo mais curto ou com menor resolução.`);
+        if (fileSizeMB > 50) {
+            throw new Error(`Vídeo muito grande (${fileSizeMB.toFixed(1)}MB). O limite para processamento direto é 50MB. Tente um vídeo mais curto ou com menor resolução.`);
         }
 
         onProgress?.("Conectando ao servidor Google...");
@@ -65,11 +65,52 @@ export const aiService = {
             ]);
         };
 
+        const executeWithFallback = async () => {
+            try {
+                return await withTimeout(
+                    model.generateContent([prompt, fileData]),
+                    300000 // 5 minutos de timeout
+                );
+            } catch (err: any) {
+                if (err.message?.includes("503") || err.status === 503) {
+                    onProgress?.("Rede congestionada. Tentando modelos alternativos de backup...");
+                    const fallbackModels = [
+                        "gemini-2.5-pro",
+                        "gemini-2.0-flash",
+                        "gemini-1.5-pro",
+                        "gemini-1.5-pro-latest"
+                    ];
+                    
+                    for (const fallback of fallbackModels) {
+                        try {
+                            onProgress?.(`Testando modelo interno: ${fallback}...`);
+                            const fallbackModel = genAI.getGenerativeModel({ model: fallback });
+                            return await withTimeout(
+                                fallbackModel.generateContent([prompt, fileData]),
+                                300000
+                            );
+                        } catch (fallbackErr: any) {
+                            // Se der 404 (modelo não existe) ou 503 (também congestionado), passa pro próximo
+                            if (
+                                fallbackErr.message?.includes("404") || 
+                                fallbackErr.message?.includes("503") || 
+                                fallbackErr.status === 503
+                            ) {
+                                continue; 
+                            }
+                            // Outro tipo de erro, não tentar próximos fallbacks
+                            throw fallbackErr;
+                        }
+                    }
+                    // Se chegou aqui, todos os fallbacks falharam
+                    throw err; // lança o erro original (503)
+                }
+                throw err;
+            }
+        };
+
         try {
-            const result = await withTimeout(
-                model.generateContent([prompt, fileData]),
-                300000 // 5 minutos de timeout
-            );
+            const result = await executeWithFallback();
 
             console.timeEnd("ai-processing");
             onProgress?.("Interpretando resposta da IA...");
@@ -107,7 +148,10 @@ export const aiService = {
                 throw new Error("A IA demorou mais de 5 minutos para responder. O vídeo pode ser complexo demais ou a conexão falhou.");
             }
             if (err.message?.includes("429")) {
-                throw new Error("Limite de requisições excedido (Quota). Aguarde um minuto e tente novamente.");
+                throw new Error("Limite de requisições excedido. Aguarde um minuto e tente novamente.");
+            }
+            if (err.message?.includes("503") || err.status === 503) {
+                throw new Error("Os servidores do Google estão temporariamente sobrecarregados (Erro 503). Por favor, tente novamente em alguns instantes.");
             }
             console.error("Erro no processamento de IA:", err);
             throw new Error(`Erro na IA: ${err.message || "Erro desconhecido"}`);

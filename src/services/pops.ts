@@ -164,6 +164,21 @@ export const popService = {
         console.log('updatePop completed successfully.');
     },
 
+    async updatePopStatus(id: string, status: string) {
+        const { error } = await supabase
+            .from('pops')
+            .update({
+                status,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error updating POP status:', error);
+            throw error;
+        }
+    },
+
     async deletePop(id: string) {
         const { error } = await supabase.from('pops').delete().eq('id', id);
         if (error) {

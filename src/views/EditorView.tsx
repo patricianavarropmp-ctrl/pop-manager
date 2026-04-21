@@ -571,7 +571,7 @@ export const EditorView = ({ setView, popId, onPopCreated }: EditorViewProps) =>
                                                 </div>
                                                 <div className="space-y-1">
                                                     <p className="text-base font-bold text-slate-800 dark:text-white">Selecione ou arraste o vídeo</p>
-                                                    <p className="text-xs text-rose-500 font-bold uppercase">Máximo 20MB (Vídeos curtos ~1min)</p>
+                                                    <p className="text-xs text-rose-500 font-bold uppercase">Máximo 50MB (~2 a 3 min dependendo da resolução)</p>
                                                 </div>
                                             </div>
                                             <p className="text-xs text-slate-400 dark:text-slate-500 italic">
@@ -742,7 +742,7 @@ export const EditorView = ({ setView, popId, onPopCreated }: EditorViewProps) =>
                                                         </div>
                                                         <input
                                                             className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-600/20 px-3 py-2 outline-none"
-                                                            placeholder="Ou cole a URL da imagem"
+                                                            placeholder="Ou cole a URL da imagem ou link do Google Drive"
                                                             value={step.image === 'uploading' ? '' : (step.image || '')}
                                                             onChange={(e) => updateStepField(i, 'image', e.target.value)}
                                                         />
@@ -792,7 +792,19 @@ export const EditorView = ({ setView, popId, onPopCreated }: EditorViewProps) =>
                                             <label className="block text-xs font-bold text-slate-400 uppercase">Visualização do Referencial</label>
                                             <div className="relative group/img aspect-video rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center bg-slate-50 dark:bg-slate-950 overflow-hidden shadow-inner">
                                                 {step.image ? (
-                                                    <img src={step.image} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
+                                                    (() => {
+                                                        const url = step.image;
+                                                        if (url.includes('drive.google.com/file/d/')) {
+                                                            const fileId = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1];
+                                                            return fileId ? (
+                                                                <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-full border-0" allow="autoplay" allowFullScreen></iframe>
+                                                            ) : <img src={url} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />;
+                                                        }
+                                                        if (url.match(/\.(mp4|webm|ogg)$/i)) {
+                                                            return <video src={url} controls className="w-full h-full object-contain" />;
+                                                        }
+                                                        return <img src={url} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />;
+                                                    })()
                                                 ) : videoUrl ? (
                                                     <div className="w-full h-full relative bg-black">
                                                         <video

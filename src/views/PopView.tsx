@@ -221,12 +221,19 @@ export const PopView = ({ setView, popId }: PopViewProps) => {
 
                                                     {step.image_url ? (
                                                         <div className="mt-6 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 aspect-video bg-slate-50 dark:bg-slate-950">
-                                                            <img
-                                                                src={step.image_url}
-                                                                className="w-full h-full object-cover"
-                                                                alt={step.title}
-                                                                referrerPolicy="no-referrer"
-                                                            />
+                                                            {(() => {
+                                                                const url = step.image_url;
+                                                                if (url.includes('drive.google.com/file/d/')) {
+                                                                    const fileId = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1];
+                                                                    return fileId ? (
+                                                                        <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-full border-0" allow="autoplay" allowFullScreen></iframe>
+                                                                    ) : <img src={url} className="w-full h-full object-cover" alt={step.title} referrerPolicy="no-referrer" />;
+                                                                }
+                                                                if (url.match(/\.(mp4|webm|ogg)$/i)) {
+                                                                    return <video src={url} controls className="w-full h-full object-contain" />;
+                                                                }
+                                                                return <img src={url} className="w-full h-full object-cover" alt={step.title} referrerPolicy="no-referrer" />;
+                                                            })()}
                                                         </div>
                                                     ) : pop.video_url ? (
                                                         <div className="mt-6 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 aspect-video bg-black relative">
@@ -290,6 +297,31 @@ export const PopView = ({ setView, popId }: PopViewProps) => {
                                     >
                                         Editar Procedimento
                                     </button>
+                                    
+                                    <div className="w-full mt-2 relative">
+                                        <select
+                                            value={pop.status}
+                                            onChange={async (e) => {
+                                                const newStatus = e.target.value as any;
+                                                const oldStatus = pop.status;
+                                                setPop({ ...pop, status: newStatus });
+                                                try {
+                                                    await popService.updatePopStatus(pop.id, newStatus);
+                                                } catch (error) {
+                                                    console.error('Failed to update status', error);
+                                                    setPop({ ...pop, status: oldStatus });
+                                                    alert('Erro ao atualizar o status.');
+                                                }
+                                            }}
+                                            className="w-full py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm appearance-none cursor-pointer outline-none pl-4 pr-10"
+                                        >
+                                            <option value="draft">Status: Rascunho</option>
+                                            <option value="published">Status: Publicado</option>
+                                            <option value="archived">Status: Arquivado</option>
+                                        </select>
+                                        <ChevronRight size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90" />
+                                    </div>
+
                                     <button
                                         onClick={handleExportPdf}
                                         disabled={isGeneratingPdf}
